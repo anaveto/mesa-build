@@ -1,0 +1,46 @@
+name: Mesa Intel for Bazzite
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Mesa ref (branch, tag or commit)
+        default: main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:45
+    env:
+      REF: ${{ github.event.inputs.ref || 'main' }}
+    steps:
+    - name: Dependencies (Fedora's own Mesa build dependencies)
+      run: |
+        dnf -y install dnf-plugins-core git
+        dnf -y builddep mesa
+    - name: Source
+      run: |
+        git init -q src && cd src
+        git remote add origin https://gitlab.freedesktop.org/mesa/mesa.git
+        git fetch -q --depth 1 origin "$REF"
+        git checkout -q FETCH_HEAD
+        git log -1 --format='%H %cd %s' | tee ../mesa-rev.txt
+    - name: Configure
+      run: |
+        meson setup build src -Dprefix=/usr -Dlibdir=lib64 -Dbuildtype=release \
+          -Dvulkan-drivers=intel -Dgallium-drivers= -Dtools=intel -Dvideo-codecs= \
+          -Dplatforms=x11,wayland -Dopengl=false -Dglx=disabled -Degl=disabled -Dgles1=disabled -Dgles2=disabled
+    - name: Build
+      run: meson compile -C build
+    - name: Install and pack
+      run: |
+        DESTDIR=$PWD/out meson install -C build >/dev/null
+        cp mesa-rev.txt out/
+        tar czf mesa-intel.tgz -C out .
+    - uses: actions/upload-artifact@v4
+      with:
+        name: mesa-intel-${{ env.REF }}
+        path: mesa-intel.tgz
