@@ -2,7 +2,7 @@ name: Mesa Intel for Bazzite
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'ci/**']
   workflow_dispatch:
     inputs:
       ref:
@@ -15,8 +15,9 @@ jobs:
     container:
       image: registry.fedoraproject.org/fedora:45
     env:
-      REF: ${{ github.event.inputs.ref || 'main' }}
+      REF: ${{ github.event.inputs.ref || (startsWith(github.ref, 'refs/heads/ci/mesa-26.3.1') && 'mesa-26.3.1') || 'main' }}
     steps:
+    - uses: actions/checkout@v4
     - name: Dependencies (Fedora's own Mesa build dependencies)
       run: |
         dnf -y install dnf-plugins-core git
@@ -28,6 +29,10 @@ jobs:
         git fetch -q --depth 1 origin "$REF"
         git checkout -q FETCH_HEAD
         git log -1 --format='%H %cd %s' | tee ../mesa-rev.txt
+        for p in ../patches/*.patch; do
+          [ -f "$p" ] || continue
+          git apply --verbose "$p" && echo "patched: $(basename "$p")" | tee -a ../mesa-rev.txt
+        done
     - name: Configure
       run: |
         meson setup build src -Dprefix=/usr -Dlibdir=lib64 -Dbuildtype=release \
@@ -44,3 +49,37 @@ jobs:
       with:
         name: mesa-intel-${{ env.REF }}
         path: mesa-intel.tgz
+
+  rpm:
+    if: startsWith(github.ref, 'refs/heads/ci/mesa-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, i386]
+    container:
+      image: registry.fedoraproject.org/fedora:45
+      options: --privileged
+    steps:
+    - uses: actions/checkout@v4
+    - name: Tools
+      run: |
+        dnf -y install mock rpm-build rpmdevtools
+        useradd -G mock builder
+    - name: Sources
+      run: |
+        mkdir -p sources
+        cp rpm/mesa.spec rpm/*.patch rpm/*.txt sources/
+        spectool -g -C sources rpm/mesa.spec
+        chown -R builder sources
+    - name: Build
+      run: |
+        mkdir -p results && chown builder results
+        su builder -c "mock -r fedora-45-${{ matrix.arch }} --isolation=simple --resultdir=results --spec sources/mesa.spec --sources sources --buildsrpm"
+        su builder -c "mock -r fedora-45-${{ matrix.arch }} --isolation=simple --resultdir=results --rebuild results/mesa-*.src.rpm"
+    - if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mesa-rpm-${{ matrix.arch }}
+        path: results/
