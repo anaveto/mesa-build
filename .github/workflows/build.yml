@@ -16,7 +16,7 @@ jobs:
     container:
       image: registry.fedoraproject.org/fedora:45
     env:
-      REF: ${{ github.event.inputs.ref || (startsWith(github.ref, 'refs/heads/ci/mesa-26.3.1') && 'mesa-26.3.1') || 'main' }}
+      REF: ${{ github.event.inputs.ref || (startsWith(github.ref, 'refs/heads/ci/bisect-26.3.1') && 'mesa-26.3.1') || 'main' }}
     steps:
     - uses: actions/checkout@v4
     - name: Dependencies (Fedora's own Mesa build dependencies)
