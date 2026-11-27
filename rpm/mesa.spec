@@ -88,7 +88,7 @@ Summary:        Mesa graphics libraries
 %global ver 26.3.1
 Epoch:          1
 Version:        %{lua:ver = string.gsub(rpm.expand("%{ver}"), "-", "~"); print(ver)}
-Release:        1.2.jay%{?dist}
+Release:        2.1.jay%{?dist}
 Packager:       Kyle Gospodnetich <me@kylegospodneti.ch>
 License:        MIT AND BSD-3-Clause AND SGI-B-2.0
 URL:            https://mesa3d.org
@@ -116,6 +116,8 @@ Source13:       https://static.crates.io/crates/syn/syn-%{rust_syn_ver}.crate
 Source14:       https://static.crates.io/crates/unicode-ident/unicode-ident-%{rust_unicode_ident_ver}.crate
 Source15:       https://static.crates.io/crates/rustc-hash/rustc-hash-%{rustc_hash_ver}.crate
 
+# https://gitlab.freedesktop.org/mesa/mesa/-/work_items/16934
+Patch10:        0002-Revert-mesa-don-t-advertise-APIs-that-are-not-built.patch
 Patch100:       jay-exdesc-address.patch
 
 # Open Gaming Collective Patches
