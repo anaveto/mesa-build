@@ -1,0 +1,16 @@
+--- a/src/intel/compiler/jay/jay_lower_pre_ra.c
++++ b/src/intel/compiler/jay/jay_lower_pre_ra.c
+@@ -258,6 +258,13 @@
+       b->cursor = jay_before_inst(I);
+       jay_def tmp = jay_alloc_def(b, J_ADDRESS, 1);
+ 
++      /* The address file is not register allocated, so keep the extended
++       * descriptor apart from the descriptor (a0.0) and the spill address
++       * (a0.2).
++       */
++      if (i == 1)
++         tmp.reg = 4;
++
+       if (i == 0 || !jay_send_bindless(I)) {
+          jay_PACK_MLEN(b, tmp, I->src[i], jay_null());
+       } else {
