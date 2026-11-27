@@ -112,3 +112,26 @@ jobs:
       with:
         name: mesa-rpm-slim-${{ matrix.arch }}
         path: keep
+
+  repo:
+    if: ${{ contains(github.event.head_commit.message, '[repack]') }}
+    needs: repack
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:45
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: mesa-rpm-slim-*
+        path: repo
+        merge-multiple: true
+    - name: One repository of both architectures (rpm-ostree replaces multilib packages only from a repo)
+      run: |
+        dnf -y install createrepo_c
+        rm -f repo/SHA256SUMS
+        createrepo_c repo
+        (cd repo && find . -type f ! -name SHA256SUMS | sort | xargs sha256sum > SHA256SUMS && cat SHA256SUMS)
+    - uses: actions/upload-artifact@v4
+      with:
+        name: mesa-rpm-repo
+        path: repo
